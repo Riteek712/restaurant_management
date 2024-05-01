@@ -24,9 +24,10 @@ var food = models.Food
 func GetFood() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		var food models.Food
 		foodId := c.Params("food_id")
 
-		foodCollection.FindOne(ctx, bson.M("food_id":foodId)).Decode(&food)
+		err := foodCollection.FindOne(ctx, bson.M{"food_id": foodId}).Decode(&food)
 		defer cancel()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occurred while fetching the food data"})
@@ -47,6 +48,7 @@ func CreateFood() gin.HandlerFunc {
 
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		var menu models.Menu
+		var food models.Food
 		if err := c.BindJSON(&food); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -59,13 +61,14 @@ func CreateFood() gin.HandlerFunc {
 		}
 		err := menuCollection.FindOne(ctx, bson.M{"menu_id": food.Menu_id}).Decode(&menu)
 		defer cancel()
+
 		if err != nil {
 			msg := fmt.Sprint("menu was not found")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
 			return
 		}
 		food.Created_at, _ = time.Parse(time.RFC3339, time.Now()).Format(time.RFC3339)
-		food.updated_at, _ = time.Parse(time.RFC3339, time.Now()).Format(time.RFC3339)
+		food.Updated_at, _ = time.Parse(time.RFC3339, time.Now()).Format(time.RFC3339)
 		food.ID = primitive.NewObjectID()
 		food.Food_id = food.ID.Hex()
 		var num = toFixed(*food.Price, 2)
@@ -77,6 +80,7 @@ func CreateFood() gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
 			return
 		}
+		defer cancel()
 		c.JSON(http.StatusOK, result)
 	}
 
